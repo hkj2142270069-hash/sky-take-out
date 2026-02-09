@@ -105,4 +105,58 @@ public class DishServiceImpl implements DishService {
         dishFlavorMapper.deleteByDishIds(ids);
 
     }
+    /**
+     * 根据id查询菜品和对应的口味
+     * @param id
+     * @return
+     */
+    @Override
+    public DishVO getByIdWithFlavor(Long id) {
+        //根据id查询菜品数据
+        Dish dish = dishMapper.getById(id);
+        //根据菜品id查询口味
+        List<DishFlavor> dishFlavors = dishFlavorMapper.getByDishId(id);
+        //组装数据
+        DishVO dishVO = new DishVO();
+        BeanUtils.copyProperties(dish,dishVO);
+        dishVO.setFlavors(dishFlavors);
+        return dishVO;
+
+    }
+    /**
+     * 修改菜品和口味
+     * @param dishDTO
+     */
+
+    @Override
+    public void updateWithFlavor(DishDTO dishDTO) {
+        //修改菜品表
+        Dish dish = new Dish();
+        BeanUtils.copyProperties(dishDTO,dish);
+        dishMapper.update(dish);
+
+        //删除原有的口味数据
+        dishFlavorMapper.deleteByDishId(dishDTO.getId());
+
+        // 添加新的口味数据
+        List<DishFlavor> flavors = dishDTO.getFlavors();
+
+        if(flavors != null && flavors.size() > 0){
+            for (DishFlavor flavor : flavors) {
+                flavor.setDishId(dishDTO.getId());
+            }
+            dishFlavorMapper.insertBatch(flavors);
+
+        }
+
+    }
+
+    @Override
+    public List<Dish> list(Long categoryId) {
+        Dish dish = Dish.builder()
+                .status(StatusConstant.ENABLE)
+                .categoryId(categoryId)
+                .build();
+        return  dishMapper.list(dish);
+    }
 }
