@@ -11,5 +11,13 @@ sky:
     access-key-secret: dU6h34uo7Nstixq3DRuNYk1HQZqwxI
     access-key-id: LTAI5tG16xsYU692jLLV6vPH
     bucket-name: hkjjava-ai
+  redis:
+    host: localhost
+    port: 6379
+    password:
+    database: 10
+  wechat:
+    appid: wxdd2a2f9445b32726
+    secret: 1c691bf9bc242f13328f95940cba8e85
 
 
