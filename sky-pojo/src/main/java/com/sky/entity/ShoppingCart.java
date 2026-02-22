@@ -47,4 +47,84 @@ public class ShoppingCart implements Serializable {
     private String image;
 
     private LocalDateTime createTime;
+
+    public LocalDateTime getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(LocalDateTime createTime) {
+        this.createTime = createTime;
+    }
+
+    public String getImage() {
+        return image;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    public Integer getNumber() {
+        return number;
+    }
+
+    public void setNumber(Integer number) {
+        this.number = number;
+    }
+
+    public String getDishFlavor() {
+        return dishFlavor;
+    }
+
+    public void setDishFlavor(String dishFlavor) {
+        this.dishFlavor = dishFlavor;
+    }
+
+    public Long getSetmealId() {
+        return setmealId;
+    }
+
+    public void setSetmealId(Long setmealId) {
+        this.setmealId = setmealId;
+    }
+
+    public Long getDishId() {
+        return dishId;
+    }
+
+    public void setDishId(Long dishId) {
+        this.dishId = dishId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
 }
