@@ -60,4 +60,5 @@ public interface OrderMapper {
     Integer countStatus(Integer status);
 
     Double sumByMap(Map map);
+
 }
