@@ -12,6 +12,7 @@ import com.sky.dto.*;
 import com.sky.entity.*;
 import com.sky.exception.AddressBookBusinessException;
 import com.sky.exception.OrderBusinessException;
+import com.sky.exception.ShoppingCartBusinessException;
 import com.sky.mapper.*;
 import com.sky.result.PageResult;
 import com.sky.service.OrderService;
@@ -63,67 +64,71 @@ public class OrderServiceImpl implements OrderService {
     private WebSocketServer webSocketServer;
     /**
      * 用户下单
+     *
      * @param ordersSubmitDTO
      * @return
      */
     @Transactional
-    @Override
     public OrderSubmitVO submitOrder(OrdersSubmitDTO ordersSubmitDTO) {
-        //处理各种业务异常（地址为空，购物车数据为空）
-        //地址
+        //异常情况的处理（收货地址为空、超出配送范围、购物车为空）
         AddressBook addressBook = addressBookMapper.getById(ordersSubmitDTO.getAddressBookId());
         if (addressBook == null) {
-            //地址为空,抛出异常
             throw new AddressBookBusinessException(MessageConstant.ADDRESS_BOOK_IS_NULL);
         }
-        //检查用户收货地址是否超出配送范围
-        checkOutOfRange(addressBook.getCityName()+addressBook.getDistrictName()+addressBook.getDetail());
-        //购物车
+
         Long userId = BaseContext.getCurrentId();
-        ShoppingCart shoppingCart=new ShoppingCart();
+        ShoppingCart shoppingCart = new ShoppingCart();
         shoppingCart.setUserId(userId);
-        List<ShoppingCart> shoppingCartList = shoppingCartMapper.list( shoppingCart);
 
+        //查询当前用户的购物车数据
+        List<ShoppingCart> shoppingCartList = shoppingCartMapper.list(shoppingCart);
         if (shoppingCartList == null || shoppingCartList.size() == 0) {
-            //购物车为空,抛出异常
-            throw new AddressBookBusinessException(MessageConstant.SHOPPING_CART_IS_NULL);
+            throw new ShoppingCartBusinessException(MessageConstant.SHOPPING_CART_IS_NULL);
         }
-        //向订单表插入1条数据
-        Orders orders = new Orders();
-        BeanUtils.copyProperties(ordersSubmitDTO, orders);
-        orders.setOrderTime(LocalDateTime.now());
-        orders.setPayStatus(Orders.UN_PAID);
-        orders.setStatus(Orders.PENDING_PAYMENT);
-        orders.setNumber( String.valueOf(System.currentTimeMillis()));
-        orders.setAddress( addressBook.getDetail());
-        orders.setPhone( addressBook.getPhone());
-        orders.setConsignee( addressBook.getConsignee());//设置收货人信息
-        orders.setUserId(userId);
 
-        orderMapper.insert(orders);
-        //向订单明细表插入n条数据
-        List<OrderDetail> orderDetailList =new ArrayList<>();
+        //构造订单数据
+        Orders order = new Orders();
+        BeanUtils.copyProperties(ordersSubmitDTO,order);
+        order.setPhone(addressBook.getPhone());
+        //老师少了这一句
+        order.setAddress(addressBook.getDetail());
+        order.setConsignee(addressBook.getConsignee());
+        order.setNumber(String.valueOf(System.currentTimeMillis()));
+        order.setUserId(userId);
+        order.setStatus(Orders.PENDING_PAYMENT);
+        order.setPayStatus(Orders.UN_PAID);
+        order.setOrderTime(LocalDateTime.now());
+
+        //向订单表插入1条数据
+        orderMapper.insert(order);
+
+        //订单明细数据
+        List<OrderDetail> orderDetailList = new ArrayList<>();
         for (ShoppingCart cart : shoppingCartList) {
             OrderDetail orderDetail = new OrderDetail();
             BeanUtils.copyProperties(cart, orderDetail);
-            orderDetail.setOrderId(orders.getId());
+            orderDetail.setOrderId(order.getId());
             orderDetailList.add(orderDetail);
         }
+
+        //向明细表插入n条数据
         orderDetailMapper.insertBatch(orderDetailList);
 
-        //清空当前用户的购物车数据
+        //清理购物车中的数据
         shoppingCartMapper.deleteByUserId(userId);
 
-        //封装VO并返回
+        //封装返回结果
         OrderSubmitVO orderSubmitVO = OrderSubmitVO.builder()
-                .id(orders.getId())
-                .orderNumber(orders.getNumber())
-                .orderAmount(orders.getAmount())
-                .orderTime(orders.getOrderTime())
+                .id(order.getId())
+                .orderNumber(order.getNumber())
+                .orderAmount(order.getAmount())
+                .orderTime(order.getOrderTime())
                 .build();
 
-        return  orderSubmitVO;
+        return orderSubmitVO;
     }
+
+
     /**
      * 订单支付
      *
@@ -248,17 +253,15 @@ public class OrderServiceImpl implements OrderService {
      *
      * @param id
      */
-    public void userCancelById(Long id) throws Exception {
-        // 根据id查询订单
+    public void userCancelById(Long id) {
         Orders ordersDB = orderMapper.getById(id);
-
-        // 校验订单是否存在
         if (ordersDB == null) {
             throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
         }
 
         //订单状态 1待付款 2待接单 3已接单 4派送中 5已完成 6已取消
         if (ordersDB.getStatus() > 2) {
+            //当订单状态大于2时，不可取消订单
             throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
         }
 
@@ -268,11 +271,11 @@ public class OrderServiceImpl implements OrderService {
         // 订单处于待接单状态下取消，需要进行退款
         if (ordersDB.getStatus().equals(Orders.TO_BE_CONFIRMED)) {
             //调用微信支付退款接口
-            weChatPayUtil.refund(
-                    ordersDB.getNumber(), //商户订单号
-                    ordersDB.getNumber(), //商户退款单号
-                    new BigDecimal(0.01),//退款金额，单位 元
-                    new BigDecimal(0.01));//原订单金额
+            //  weChatPayUtil.refund(
+            //          ordersDB.getNumber(), //商户订单号
+            //          ordersDB.getNumber(), //商户退款单号
+            //          new BigDecimal(0.01),//退款金额，单位 元
+            //          new BigDecimal(0.01));//原订单金额
 
             //支付状态修改为 退款
             orders.setPayStatus(Orders.REFUND);
